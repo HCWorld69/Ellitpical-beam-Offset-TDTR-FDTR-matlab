@@ -1,0 +1,247 @@
+% Define the parameters
+C = 1;              % heat capacity
+Kx = 1;             % thermal conductivity in the x direction
+Ky = 1;             % thermal conductivity in the y direction
+Kz = 1;             % thermal conductivity in the z direction
+Kxy = 0.5;          % cross-component thermal conductivity
+Kxz = 0.3;          % cross-component thermal conductivity
+Kyz = 0.2;          % cross-component thermal conductivity
+L = 1;              % length of the domain in the z direction
+N = 100;            % number of grid points in the z direction
+dz = L/N;           % grid spacing
+tspan = [0, 1];     % time span for the simulation
+nsteps = 100;       % number of time steps
+dt = diff(tspan)/nsteps; % time step size
+omega = 1;          % frequency of the Fourier transform
+
+% Define the Fourier space grid
+u = 2*pi/L*(-N/2:N/2-1);
+v = 2*pi/L*(-N/2:N/2-1);
+
+% Compute the coefficients
+lambda1 = @(u,v) 1i*C*omega/Kz + 4*pi^2/Kz*(Kx*u.^2 + 2*Kxy*u.*v + Ky*v.^2);
+lambda2 = @(u,v) 4*pi/Kz*(Kxz*u + Kyz*v);
+
+% Define the initial condition in Fourier space
+Theta0 = zeros(length(u), length(v));
+Theta0(1, 1) = 1;
+
+% Define the finite difference coefficients
+A = spdiags([-1 ones(N-2,1) -1], [-1 0 1], N-2, N-2);
+A = A/dz^2;
+B = spdiags([zeros(N-3,1) -lambda2(u,v(2:end-1)).' zeros(N-3,1)], [0 -1 1], N-2, N-2);
+C = spdiags([lambda1(u,v(2:end-1)).' zeros(N-3,1) -lambda1(u,v(2:end-1)).'], [-1 0 1], N-2, N-2);
+
+% Define the ODE function for the simulation
+odefun = @(t, Theta) (A + B*Theta + C*Theta^2)*Theta;
+
+% Solve the ODE using the built-in MATLAB solver ode45
+[t, Theta] = ode45(odefun, tspan, Theta0(:), odeset('RelTol', 1e-6), 'OutputFcn', @odeplot);
+
+% Reshape the solution to the Fourier space grid
+Theta = reshape(Theta, length(u), length(v), []);
+
+% Inverse Fourier transform to get the solution in physical space
+T = real(ifft2(Theta));
+
+% Define material properties and system geometry
+Kx = ...; % Thermal conductivity in x direction
+Ky = ...; % Thermal conductivity in y direction
+Kz = ...; % Thermal conductivity in z direction
+Kxy = ...; % Thermal conductivity in xy direction
+Kxz = ...; % Thermal conductivity in xz direction
+Kyz = ...; % Thermal conductivity in yz direction
+C = ...; % Specific heat
+omega = ...; % Angular frequency of Fourier transform
+L = ...; % Total thickness of the multilayer system
+n_layers = ...; % Number of layers in the multilayer system
+layer_thicknesses = ...; % Thickness of each layer
+
+% Define Fourier transform variables
+du = ...; % Spacing in u direction
+dv = ...; % Spacing in v direction
+u_max = ...; % Maximum value of u
+v_max = ...; % Maximum value of v
+u = -u_max:du:u_max;
+v = -v_max:dv:v_max;
+[U, V] = meshgrid(u, v);
+
+% Define matrix N for each layer
+N = zeros(2, 2, n_layers);
+for i = 1:n_layers
+    lambda1 = (1i * C * omega / Kz) + ...
+        (4 * pi^2 * (Kx * U.^2 + 2 * Kxy * U .* V + Ky * V.^2)) / Kz;
+    lambda2 = 1i * 4 * pi * (Kxz * U + Kyz * V) / Kz;
+    u_plus = (-lambda2 + sqrt(lambda2.^2 + 4 * lambda1)) / 2;
+    u_minus = (-lambda2 - sqrt(lambda2.^2 + 4 * lambda1)) / 2;
+    N(:,:,i) = [1, 1; -Kz * u_plus, -Kz * u_minus] ...
+        .* [exp(u_plus * layer_thicknesses(i)), 0; 0, exp(u_minus * layer_thicknesses(i))];
+end
+
+% Define matrix M for each layer
+M = zeros(2, 2, n_layers);
+for i = 1:n_layers
+    M(:,:,i) = (1 / (Kz * (u_plus - u_minus))) ...
+        .* [-Kz * u_minus, -1; Kz * u_plus, 1];
+end
+
+% Define initial temperature and heat flux boundary conditions
+T0 = ...; % Surface temperature
+Q0 = ...; % Surface heat flux
+
+% Initialize temperature and heat flux matrices
+Theta = zeros(size(U));
+Q = zeros(size(U));
+
+% Calculate temperature and heat flux at each layer
+for i = 1:n_layers
+    if i == 1 % Use surface boundary conditions for first layer
+        Theta_layer = T0 * ones(size(U));
+        Q_layer = Q0 * ones(size(U));
+    else % Use temperature and heat flux from previous layer
+        Theta_layer = Theta(:,:,i-1);
+        Q_layer = Q(:,:,i-1);
+    end
+    
+    % Calculate B+ and B- using matrix inversion
+    B = M(:,:,i) * [Theta_layer(1,1); Q_layer(1,1)];
+    B_plus = B(1);
+    B_minus = B(2);
+    
+    % Calculate temperature and heat flux for this layer
+    T_layer = N(1,1,i) * B_plus * exp(u_plus * (L - sum(layer_thicknesses(1:i-1)))) + ...
+        N(1,2
+
+% Input parameters
+C = 1; % heat capacity
+
+% Define input parameters
+lambda1 = ...; % value of lambda1
+lambda2 = ...; % value of lambda2
+Kz = ...; % value of thermal conductivity
+G = ...; % value of interface thermal conductance
+L = ...; % value of layer thickness
+num_layers = ...; % number of layers in the multilayer system
+
+% Calculate roots of equation
+u_plus = (-lambda2 + sqrt(lambda2^2 + 4*lambda1)) / 2;
+u_minus = (-lambda2 - sqrt(lambda2^2 + 4*lambda1)) / 2;
+
+% Define matrix N for each layer
+N = zeros(2, 2, num_layers);
+for n = 1:num_layers
+    e_plus = exp(u_plus*L);
+    e_minus = exp(u_minus*L);
+    N(:,:,n) = [1, 1; -Kz*u_plus, -Kz*u_minus] * [e_plus, 0; 0, e_minus];
+end
+
+% Define matrix M for each layer
+M = zeros(2, 2, num_layers);
+for n = 1:num_layers
+    M(:,:,n) = (1/(Kz*(u_plus - u_minus))) * [-Kz*u_minus, -1; Kz*u_plus, 1];
+end
+
+% Define matrix R for each interface
+R = zeros(2, 2, num_layers-1);
+for n = 1:num_layers-1
+    R(:,:,n) = [1, -1/G; 0, 1];
+end
+
+% Calculate matrix ABD for the entire multilayer system
+ABD = N(:,:,end) * M(:,:,end);
+for n = num_layers-1:-1:1
+    ABD = R(:,:,n) * ABD;
+    ABD = N(:,:,n) * M(:,:,n) * ABD;
+end
+
+% Define surface temperature and heat flux of first layer
+Theta_1 = ...; % surface temperature of first layer
+Q_1 = ...; % heat flux of first layer
+
+% Calculate temperature and heat flux on surface of last layer
+temp_flux_last = ABD * [Theta_1; Q_1];
+
+% Define parameters
+A0 = 1; % Amplitude of pump beam
+sigma_x0 = 1; % 1/e^2 radius of pump spot in x-direction
+sigma_y0 = 1; % 1/e^2 radius of pump spot in y-direction
+G = 1; % Interface thermal conductance
+
+% Define grid of x and y coordinates
+x = linspace(-10, 10, 100); % Range of x-coordinates
+y = linspace(-10, 10, 100); % Range of y-coordinates
+[X, Y] = meshgrid(x, y); % 2D grid of x and y coordinates
+
+% Define pump beam
+p0 = 2*A0./(pi*sigma_x0*sigma_y0).*exp(-2*X.^2./sigma_x0^2).*exp(-2*Y.^2./sigma_y0^2);
+
+% Compute 2D Fourier transform of pump beam
+P0 = fftshift(fft2(p0));
+
+% Define temperature response function
+C = 1; % We'll assume C=1 for simplicity
+D = -G; % From boundary condition that heat flux at bottom of substrate is zero
+H = -D/C;
+
+% Compute inverse Fourier transform of product of pump beam and temperature response function
+theta = ifft2(ifftshift(P0.*H));
+
+% Plot pump beam and temperature distribution
+figure;
+subplot(1,2,1);
+imagesc(x, y, p0);
+xlabel('x');
+ylabel('y');
+title('Pump beam');
+axis equal tight;
+colorbar;
+subplot(1,2,2);
+imagesc(x, y, real(theta));
+xlabel('x');
+ylabel('y');
+title('Temperature distribution');
+axis equal tight;
+colorbar;
+
+% Constants
+sigma_x0 = 1; % 1/e^2 radius of pump spot in x direction
+sigma_y0 = 1; % 1/e^2 radius of pump spot in y direction
+sigma_x1 = 2; % 1/e^2 radius of probe spot in x direction
+sigma_y1 = 2; % 1/e^2 radius of probe spot in y direction
+xc = 0.5; % x offset between pump and probe
+yc = -0.5; % y offset between pump and probe
+w_x = sqrt((sigma_x0^2 + sigma_x1^2) / 2); % width parameter in x direction
+w_y = sqrt((sigma_y0^2 + sigma_y1^2) / 2); % width parameter in y direction
+dRdT = 1.5; % thermoreflectance coefficient
+omega_0 = 1e6; % modulation frequency of pump heating
+omega_s = 2*pi*1e8; % sampling frequency by laser pulses
+td = 1e-9; % delay time between pump and probe
+
+% Define function to calculate H(u,v)
+H = @(u,v) 2/pi/sigma_x1/sigma_y1 * exp(-pi^2*(u^2*w_x^2+v^2*w_y^2)) * exp(1i*2*pi*(u*xc+v*yc));
+
+% Evaluate surface temperature oscillation Delta T
+n_pts = 101; % number of points to use in each dimension for integration
+x = linspace(-10, 10, n_pts);
+y = linspace(-10, 10, n_pts);
+[X, Y] = meshgrid(x, y);
+dA = (x(2)-x(1))*(y(2)-y(1)); % area element
+Delta_T = 0;
+for i = 1:n_pts
+    for j = 1:n_pts
+        Delta_T = Delta_T + theta(X(i,j), Y(i,j)) * H(X(i,j), Y(i,j)) * dA;
+    end
+end
+
+% Evaluate lock-in amplifier outputs V_in and V_out
+n_harm = 20; % number of harmonics to include in summation
+t = linspace(0, 1e-6, 1001); % time points to evaluate signal
+Delta_T_t = @(t) interp1(t, Delta_T, omega_0 + omega_s*(-n_harm:n_harm)); % interpolate Delta_T to time points
+V_in = zeros(size(t));
+V_out = zeros(size(t));
+for n = -n_harm:n_harm
+    V_in = V_in + (Delta_T_t(t) + Delta_T_t(t - td))*exp(1i*n*omega_s*t)*dRdT/2;
+    V_out = V_out + (Delta_T_t(t) - Delta_T_t(t - td))*exp(1i*n*omega_s*t)*dRdT*(-1i/2);
+end
+R = -V_in ./ V_out; % ratio of V_in to V_out
+
